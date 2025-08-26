@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>분수·소수 시각화 도구 v1.5 — 초등 5‧6학년</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#111827; --muted:#1f2937; --card:#0f172a; --border:#334155; --text:#e5e7eb; --sub:#94a3b8; --accent:#38bdf8; --accent-2:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0a1020,#0b1220);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Helvetica,Arial,sans-serif}
+    header{padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(11,18,32,.9);backdrop-filter:saturate(120%) blur(6px)}
+    header h1{margin:0;font-size:20px;letter-spacing:.2px}
+
+    .wrap{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px}
+    @media (max-width: 1080px){.wrap{grid-template-columns:1fr}}
+
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .panel h2{margin:0 0 12px 0;font-size:16px;color:#cbd5e1}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    input[type=text]{flex:1;min-width:160px;background:var(--card);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:10px 12px;font-size:15px}
+    select,button{background:var(--muted);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:12px;font-size:14px;cursor:pointer}
+    button.primary{background:var(--accent);border-color:transparent;color:#00111a;font-weight:700}
+    button.ghost{background:transparent;border-color:var(--border)}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{padding:6px 10px;background:#0c172a;border:1px solid var(--border);border-radius:999px;color:#cbd5e1;font-size:13px;cursor:pointer}
+    .muted{color:var(--sub)}
+    .hr{height:1px;background:var(--border);margin:12px 0}
+
+    .out{display:grid;grid-template-columns:1fr;gap:16px}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+    @media (max-width: 1400px){.cards{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width: 760px){.cards{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .card h3{margin:0 0 10px 0;font-size:15px;color:#cbd5e1}
+
+    /* 원 그래프 */
+    .pies{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+    .pie{width:200px;height:200px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--border)}
+    .pie-inner{width:72%;height:72%;border-radius:50%;background:radial-gradient(circle at 50% 50%, rgba(255,255,255,.06) 0 35%, transparent 36%)}
+    .badge{display:inline-block;font-size:12px;padding:4px 8px;border-radius:999px;background:#0b1426;border:1px solid var(--border);color:#cbd5e1}
+
+    /* 직사각형 */
+    .rect-grid{display:grid;gap:2px;margin-top:8px}
+    .cell{background:#0b1426;border:1px solid #0f213b;border-radius:6px;height:22px}
+    .cell.filled{background:linear-gradient(180deg,var(--accent-2),#15803d)}
+
+    /* 퍼센트 격자 */
+    .pct-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;margin-top:8px}
+    .pct-cell{height:18px;border-radius:4px;background:#09142a;border:1px solid #0f213b}
+    .pct-cell.on{background:linear-gradient(180deg,#60a5fa,#2563eb)}
+
+    /* 수직선 */
+    .numline{width:100%;height:140px}
+
+    .kvs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+    .kv{background:#0b1426;border:1px dashed var(--border);border-radius:12px;padding:10px}
+    .kv .lab{color:#a3b2c7;font-size:12px}
+    .kv .val{font-size:16px;margin-top:2px}
+
+    .note{font-size:13px;color:#a6b3c7;line-height:1.5}
+    .warn{color:var(--warn)}
+    .err{color:var(--danger)}
+
+    /* 비교 결과 */
+    .compare{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .cmp-box{background:#0b1426;border:1px solid var(--border);border-radius:12px;padding:12px}
+    .cmp-box.good{outline:2px solid #22c55e}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>분수·소수 시각화 도구 <span class="muted">v1.5 — 원 · 직사각형 · 퍼센트 격자 · 수직선 + 비교/연습</span></h1>
+  </header>
+
+  <main class="wrap">
+    <!-- 좌: 컨트롤 -->
+    <section class="panel" aria-label="입력 패널">
+      <h2>입력</h2>
+      <div class="row" title="분수 a/b, 소수 0.75, 나눗셈 3÷4 형식 허용">
+        <input id="valueA" type="text" placeholder="값 A (예: 3/4, 0.75, 3÷4)" aria-label="값A" />
+        <button id="btnRun" class="primary">시각화</button>
+      </div>
+      <div class="chips" aria-label="예시 값">
+        <span class="chip" data-preset="1/2">1/2</span>
+        <span class="chip" data-preset="3/4">3/4</span>
+        <span class="chip" data-preset="2/5">2/5</span>
+        <span class="chip" data-preset="0.2">0.2</span>
+        <span class="chip" data-preset="0.75">0.75</span>
+        <span class="chip" data-preset="3÷4">3÷4</span>
+      </div>
+
+      <div class="row">
+        <label><input type="checkbox" id="compareMode"> 비교 모드</label>
+        <input id="valueB" type="text" placeholder="값 B (비교 모드)" aria-label="값B" style="display:none"/>
+        <button id="btnCompare" class="ghost" style="display:none">비교</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <h2>표시 옵션</h2>
+      <div class="row">
+        <label><input type="checkbox" id="showPie" checked> 원 그래프</label>
+        <label><input type="checkbox" id="showRect" checked> 직사각형</label>
+        <label><input type="checkbox" id="showPercent" checked> 퍼센트 격자(10×10)</label>
+        <label><input type="checkbox" id="showLine" checked> 수직선</label>
+      </div>
+      <div class="row">
+        <label>직사각형 열 수: <input type="range" id="cols" min="2" max="20" value="8"> <span id="colsVal" class="muted">8</span></label>
+        <label style="margin-left:auto">허용 범위: 0 ~ 3</label>
+      </div>
+
+      <div class="hr"></div>
+
+      <h2>연습문제 (비교)</h2>
+      <div class="row">
+        <button id="btnGen" class="ghost">5문항 만들기</button>
+        <button id="btnCheck" class="ghost">정답 확인</button>
+        <span id="quizScore" class="muted"></span>
+      </div>
+      <div id="quiz"></div>
+
+      <div class="hr"></div>
+
+      <h2>설명</h2>
+      <div id="explain" class="note" aria-live="polite">값을 입력하고 시각화해 보세요. (혼합수/대분수 포함 0~3 범위)</div>
+      <div id="msg" class="note" style="margin-top:6px"></div>
+    </section>
+
+    <!-- 우: 결과 -->
+    <section class="out">
+      <div class="panel">
+        <h2>요약</h2>
+        <div class="kvs" id="kvs">
+          <div class="kv"><div class="lab">분수(기약)</div><div class="val" id="frac">—</div></div>
+          <div class="kv"><div class="lab">소수</div><div class="val" id="dec">—</div></div>
+          <div class="kv"><div class="lab">백분율</div><div class="val" id="pct">—</div></div>
+          <div class="kv"><div class="lab">나눗셈</div><div class="val" id="divExpr">—</div></div>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card" id="cardPie">
+          <h3>원 그래프 <span class="badge" id="badgePie">—</span></h3>
+          <div id="pies" class="pies"></div>
+          <div class="note" id="pieNote"></div>
+        </div>
+        <div class="card" id="cardRect">
+          <h3>직사각형(등분 모델)</h3>
+          <div id="rect" class="rect-grid" aria-label="직사각형 그리드"></div>
+          <div class="note" id="rectNote"></div>
+        </div>
+        <div class="card" id="cardPercent">
+          <h3>퍼센트 격자(10×10)</h3>
+          <div id="pctGrid" class="pct-grid"></div>
+          <div class="note" id="pctNote"></div>
+        </div>
+        <div class="card" id="cardLine">
+          <h3>수직선</h3>
+          <svg id="numline" class="numline" viewBox="0 0 640 140" role="img" aria-label="수직선"></svg>
+          <div class="note" id="lineNote"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="comparePanel" style="display:none">
+        <h2>비교 결과</h2>
+        <div class="compare">
+          <div class="cmp-box" id="cmpA"></div>
+          <div class="cmp-box" id="cmpB"></div>
+        </div>
+        <div class="note" id="cmpExplain" style="margin-top:8px"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ===== 유틸 =====
+    const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
+    const lcm=(a,b)=>a*b/gcd(a,b);
+    const clamp=(x,min,max)=>Math.min(max,Math.max(min,x));
+
+    function parseInput(str){
+      if(!str) return null;
+      str=String(str).trim().replaceAll(' ','').replace('−','-').replace('÷','/');
+      // 혼합수 예: 1 3/4 (공백 포함) → 1+3/4 형태는 앞에서 제거되므로 아래 처리 유지
+      // 분수 a/b
+      if(/^-?\d+\/\d+$/.test(str)){
+        const [a,b]=str.split('/').map(Number);
+        if(b===0) return {error:'분모가 0일 수 없습니다.'};
+        return {type:'fraction', num:a, den:b, val:a/b};
+      }
+      // 소수/정수
+      if(/^[-+]?\d*(?:\.\d+)?$/.test(str)){
+        const v=Number(str);
+        if(!isFinite(v)) return {error:'숫자를 확인하세요.'};
+        return {type:'decimal', val:v};
+      }
+      // 혼합수 1+3/4, 1 3/4 → 1+3/4 로 허용
+      const mix=str.replace(/^([0-9]+)\+([0-9]+)\/([0-9]+)$/,(m,w,n,d)=>String(Number(w)+Number(n)/Number(d)));
+      if(mix!==str) return parseInput(mix);
+      const mix2=str.replace(/^([0-9]+)\s+([0-9]+)\/([0-9]+)$/,(m,w,n,d)=>String(Number(w)+Number(n)/Number(d)));
+      if(mix2!==str) return parseInput(mix2);
+      return {error:'형식 오류: a/b, 0.75, 3÷4, 1 3/4 형식 허용'};
+    }
+
+    function decimalToFraction(x){
+      const s=String(x);
+      if(s.includes('.')){
+        const k=s.split('.')[1].length;
+        const den=Math.pow(10,k);
+        let num=Math.round(x*den);
+        const g=gcd(num,den);return {num:num/g, den:den/g};
+      }
+      return {num:x, den:1};
+    }
+
+    function toReducedFraction(info){
+      if(info.type==='fraction'){
+        const g=gcd(info.num,info.den);const num=info.num/g, den=info.den/g;return {num,den,val:num/den};
+      }
+      if(info.type==='decimal'){
+        const {num,den}=decimalToFraction(info.val);return {num,den,val:num/den};
+      }
+      return null;
+    }
+
+    function equivalents(num,den){
+      const list=[];for(const m of [2,3,4,5]){const n=num*m,d=den*m;if(d<=200) list.push(`${n}/${d}`)}return list;
+    }
+
+    // ===== 시각화 =====
+    function drawPies(container, value){
+      container.innerHTML='';
+      const v=clamp(value,0,3);
+      const whole=Math.floor(v); const rem=v-whole;
+      const pies=[];
+      // 정수 부분 pie(가득)
+      for(let i=0;i<whole;i++){const p=document.createElement('div');p.className='pie';p.style.background='conic-gradient(var(--accent) 0 360deg)';p.innerHTML='<div class="pie-inner"></div>';pies.push(p)}
+      // 나머지 pie
+      if(rem>0){const deg=(rem*360).toFixed(2);const p=document.createElement('div');p.className='pie';p.style.background=`conic-gradient(var(--accent) 0 ${deg}deg, #0b1426 ${deg}deg 360deg)`;p.innerHTML='<div class="pie-inner"></div>';pies.push(p)}
+      if(pies.length===0){const p=document.createElement('div');p.className='pie';p.style.background='#0b1426';p.innerHTML='<div class="pie-inner"></div>';pies.push(p)}
+      pies.forEach(p=>container.appendChild(p));
+      document.getElementById('badgePie').textContent = v.toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+    }
+
+    function drawRect(el, num, den, cols){
+      // 여러 개의 '전체'를 표현: 총 칸 = den * ceil(num/den)
+      cols = clamp(cols,2,40);
+      const groups = Math.max(1, Math.ceil(num/den));
+      const total = den * groups;
+      el.style.gridTemplateColumns = `repeat(${cols}, minmax(16px, 1fr))`;
+      const rows = Math.ceil(total/cols);
+      el.style.gridTemplateRows = `repeat(${rows}, 22px)`;
+      el.innerHTML='';
+      for(let i=0;i<total;i++){
+        const cell=document.createElement('div');
+        cell.className='cell'+(i < num ? ' filled':'' );
+        el.appendChild(cell);
+      }
+    }
+
+    function drawPercentGrid(el, value){
+      el.innerHTML='';
+      const pct=clamp(value,0,3); // 0~3 → 최대 300%
+      const fill=Math.round(pct*100); // 셀 100개 단위로 표현, 100 넘어가면 2~3번째 격자처럼 생각
+      const count = Math.min(fill,100);
+      for(let i=0;i<100;i++){
+        const c=document.createElement('div');c.className='pct-cell'+(i<count?' on':'');el.appendChild(c);
+      }
+      document.getElementById('pctNote').textContent = `${(pct*100).toFixed(0)}% (0~300% 중 0~100%만 10×10 격자에 표기)`;
+    }
+
+    function drawNumberLine(svg, num, den){
+      const NS='http://www.w3.org/2000/svg';svg.innerHTML='';
+      const W=640,H=140,M=50; const y=H/2; const maxX = Math.max(1, Math.ceil(num/den));
+      const line=document.createElementNS(NS,'line'); line.setAttribute('x1',M); line.setAttribute('y1',y); line.setAttribute('x2',W-M); line.setAttribute('y2',y); line.setAttribute('stroke','#91a3bf'); line.setAttribute('stroke-width','2'); svg.appendChild(line);
+      // 0..maxX 주요 눈금
+      const ticks = den * maxX; // 분모 기준 눈금 확장
+      for(let i=0;i<=ticks;i++){
+        const x = M + (W-2*M)*(i/ticks);
+        const t = document.createElementNS(NS,'line'); t.setAttribute('x1',x); t.setAttribute('y1',y-8); t.setAttribute('x2',x); t.setAttribute('y2',y+8);
+        t.setAttribute('stroke', (i%den===0) ? '#e5e7eb' : '#a3b2c7'); t.setAttribute('stroke-width', (i%den===0)?'2':'1'); svg.appendChild(t);
+        if(i%den===0){const label=document.createElementNS(NS,'text'); label.setAttribute('x',x); label.setAttribute('y', y+28); label.setAttribute('fill','#cbd5e1'); label.setAttribute('font-size','12'); label.setAttribute('text-anchor','middle'); label.textContent=String(i/den); svg.appendChild(label);}      }
+      const xVal = M + (W-2*M)*((num/den)/maxX);
+      const mark=document.createElementNS(NS,'circle'); mark.setAttribute('cx', xVal); mark.setAttribute('cy', y); mark.setAttribute('r', 8); mark.setAttribute('fill','var(--accent)'); mark.setAttribute('stroke','#083344'); mark.setAttribute('stroke-width','2'); svg.appendChild(mark);
+      const label=document.createElementNS(NS,'text'); label.setAttribute('x', xVal); label.setAttribute('y', y-14); label.setAttribute('fill','#7dd3fc'); label.setAttribute('font-size','12'); label.setAttribute('text-anchor','middle'); label.textContent=`${num}/${den}`; svg.appendChild(label);
+      document.getElementById('lineNote').textContent = `0에서 ${maxX} 사이 눈금으로 표시했습니다.`;
+    }
+
+    // ===== 비교 =====
+    function compareFractions(aNum,aDen,bNum,bDen){
+      const L = lcm(aDen,bDen); const A=aNum*(L/aDen); const B=bNum*(L/bDen);
+      return {L,A,B,cmp: Math.sign(A-B)}; // -1: A<B, 0:==, 1:A>B
+    }
+
+    function fmt(r){return `${r.num}/${r.den}`}
+
+    // ===== 상태/DOM =====
+    const $=s=>document.querySelector(s);
+    const valueA=$('#valueA'); const valueB=$('#valueB');
+    const btnRun=$('#btnRun'); const btnCompare=$('#btnCompare');
+    const compareMode=$('#compareMode');
+    const piesEl=$('#pies'); const rectEl=$('#rect'); const pctGrid=$('#pctGrid'); const numline=$('#numline');
+    const fracEl=$('#frac'); const decEl=$('#dec'); const pctEl=$('#pct'); const divExprEl=$('#divExpr');
+    const explainEl=$('#explain'); const msgEl=$('#msg');
+    const colsEl=$('#cols'); const colsVal=$('#colsVal');
+    const cardPie=$('#cardPie'); const cardRect=$('#cardRect'); const cardLine=$('#cardLine'); const cardPercent=$('#cardPercent');
+    const showPie=$('#showPie'); const showRect=$('#showRect'); const showLine=$('#showLine'); const showPercent=$('#showPercent');
+    const cmpPanel=$('#comparePanel'); const cmpA=$('#cmpA'); const cmpB=$('#cmpB'); const cmpExplain=$('#cmpExplain');
+
+    const quizEl=$('#quiz'); const btnGen=$('#btnGen'); const btnCheck=$('#btnCheck'); const quizScore=$('#quizScore');
+
+    function setVisibility(){
+      cardPie.style.display = showPie.checked ? '' : 'none';
+      cardRect.style.display= showRect.checked ? '' : 'none';
+      cardLine.style.display= showLine.checked ? '' : 'none';
+      cardPercent.style.display= showPercent.checked ? '' : 'none';
+    }
+    [showPie,showRect,showLine,showPercent].forEach(el=>el.addEventListener('change', setVisibility));
+
+    colsEl.addEventListener('input', ()=>{ colsVal.textContent=colsEl.value });
+
+    document.querySelectorAll('.chip').forEach(ch=>{
+      ch.addEventListener('click', ()=>{ valueA.value=ch.dataset.preset; runSingle(); });
+    });
+
+    compareMode.addEventListener('change',()=>{
+      const on=compareMode.checked;
+      valueB.style.display = on? '' : 'none';
+      btnCompare.style.display = on? '' : 'none';
+      cmpPanel.style.display = on? '' : 'none';
+    });
+
+    valueA.addEventListener('keydown',e=>{ if(e.key==='Enter'){ compareMode.checked? runCompare() : runSingle(); }});
+    valueB.addEventListener('keydown',e=>{ if(e.key==='Enter'){ runCompare(); }});
+    btnRun.addEventListener('click', ()=>{ compareMode.checked? runCompare() : runSingle(); });
+    btnCompare.addEventListener('click', runCompare);
+
+    function normalizeToReduced(str){
+      const p=parseInput(str); if(p?.error) return {error:p.error};
+      const r=toReducedFraction(p); if(!r) return {error:'입력을 확인하세요.'};
+      const v = r.val; if(v<0 || v>3) return {error:'허용 범위는 0~3 입니다.'};
+      return r;
+    }
+
+    function runSingle(){
+      msgEl.textContent='';
+      const r=normalizeToReduced(valueA.value);
+      if(r.error){ msgEl.innerHTML=`<span class="err">${r.error}</span>`; return; }
+
+      // 요약
+      const fracTxt=`${r.num}/${r.den}`;
+      fracEl.textContent=fracTxt;
+      decEl.textContent=(r.val).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+      pctEl.textContent=(r.val*100).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')+'%';
+      divExprEl.textContent=`${r.num} ÷ ${r.den} = ${(r.num/r.den).toFixed(4).replace(/0+$/,'').replace(/\.$/,'')}`;
+
+      // 설명
+      const eqs=equivalents(r.num,r.den);
+      explainEl.innerHTML = `분수 <b>${fracTxt}</b>는 전체를 <b>${r.den}등분</b>하고 그중 <b>${r.num}부분</b>을 뜻합니다.<br>
+      나눗셈 관점으로는 <b>${r.num} ÷ ${r.den}</b>, 소수로는 <b>${(r.val).toFixed(4).replace(/0+$/,'').replace(/\.$/,'')}</b> 입니다.
+      ${eqs.length? `<br>동치분수 예: <span class="muted">${eqs.join(', ')}</span>`:''}`;
+
+      // 원/직사각형/퍼센트/수직선
+      drawPies(piesEl, r.val);
+      drawRect(rectEl, Math.round(r.val*r.den), r.den, Number(colsEl.value)); // den 기준 그룹 표현
+      drawPercentGrid(pctGrid, r.val);
+      drawNumberLine(numline, r.num, r.den);
+
+      setVisibility();
+    }
+
+    function runCompare(){
+      msgEl.textContent='';
+      const A=normalizeToReduced(valueA.value); if(A.error){ msgEl.innerHTML=`<span class="err">A: ${A.error}</span>`; return; }
+      const B=normalizeToReduced(valueB.value); if(B.error){ msgEl.innerHTML=`<span class="err">B: ${B.error}</span>`; return; }
+      runSingle();
+      const {L,A:An,B:Bn,cmp} = compareFractions(A.num,A.den,B.num,B.den);
+      const sign = cmp<0? '<' : cmp>0? '>' : '=';
+      cmpA.className='cmp-box'+(cmp>0?' good':'');
+      cmpB.className='cmp-box'+(cmp<0?' good':'');
+      cmpA.innerHTML = `<div><b>A</b> = ${A.num}/${A.den} = ${ (A.num/A.den).toFixed(4).replace(/0+$/,'').replace(/\.$/,'') }</div>
+                        <div>공배수 ${L} 기준 → ${An}/${L}</div>`;
+      cmpB.innerHTML = `<div><b>B</b> = ${B.num}/${B.den} = ${ (B.num/B.den).toFixed(4).replace(/0+$/,'').replace(/\.$/,'') }</div>
+                        <div>공배수 ${L} 기준 → ${Bn}/${L}</div>`;
+      cmpExplain.innerHTML = `비교: <b>${A.num}/${A.den} ${sign} ${B.num}/${B.den}</b> (분모를 ${L}로 통일하여 분자를 비교)`;
+    }
+
+    // ===== 연습문제(비교 5문항) =====
+    function randInt(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+    function genFraction(){
+      let den=randInt(2,12); let num=randInt(1,den-1); // 진분수
+      const g=gcd(num,den); num/=g; den/=g; return {num,den};
+    }
+    function makeQuiz(){
+      quizEl.innerHTML=''; quizScore.textContent='';
+      for(let i=0;i<5;i++){
+        const A=genFraction(); const B=genFraction();
+        const id=`q${i}`;
+        const row=document.createElement('div'); row.className='panel'; row.style.marginTop='8px';
+        row.innerHTML = `<div><b>문항 ${i+1}.</b> 어느 쪽이 더 클까요?  <code>${A.num}/${A.den}</code>  vs  <code>${B.num}/${B.den}</code></div>
+          <div class="row" style="margin-top:8px">
+            <label><input type="radio" name="${id}" value="A"> A가 큼</label>
+            <label><input type="radio" name="${id}" value="="></label>
+            <label><input type="radio" name="${id}" value="B"> B가 큼</label>
+            <span id="${id}-ans" class="muted"></span>
+          </div>`;
+        // 가운데 라디오에 '=' 텍스트 넣기(가독성 위해 분리)
+        const equalLabel = row.querySelector(`label:nth-child(2)`);
+        equalLabel.innerHTML = `<input type="radio" name="${id}" value="="> 같음`;
+        row.dataset.a = JSON.stringify(A); row.dataset.b=JSON.stringify(B);
+        quizEl.appendChild(row);
+      }
+    }
+
+    function checkQuiz(){
+      let correct=0;
+      quizEl.querySelectorAll('.panel').forEach((row)=>{
+        const A=JSON.parse(row.dataset.a); const B=JSON.parse(row.dataset.b);
+        const {L,A:An,B:Bn,cmp}=compareFractions(A.num,A.den,B.num,B.den);
+        const ans = cmp<0? 'B' : cmp>0? 'A' : '=';
+        const chosen = (row.querySelector('input[type=radio]:checked')||{}).value;
+        if(chosen===ans) correct++;
+        const ansSpan=row.querySelector('span');
+        ansSpan.innerHTML = `정답: <b>${ans}</b> (분모 ${L}로 통일 → ${An}/${L} vs ${Bn}/${L})`;
+      });
+      quizScore.textContent = `${correct}/5 정답`;
+    }
+
+    btnGen.addEventListener('click', makeQuiz);
+    btnCheck.addEventListener('click', checkQuiz);
+
+    // 초기 바인딩
+    function init(){
+      setVisibility();
+      document.querySelectorAll('.chip')[1].click(); // 3/4 기본
+    }
+    init();
+  </script>
+</body>
+</html>
